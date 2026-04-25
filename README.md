@@ -1,24 +1,50 @@
 # spark-character
 
-Provider-agnostic voice and character for Spark agents.
+The voice and character of Spark agents. Provider-agnostic. Versioned. Evolvable from real conversations.
 
-The persona spec and the critic-rewriter prompt live as versioned markdown
-artifacts. The self-evolving harness mutates them, scores them on the P1-P5
-persona axes, and keeps what wins. Anyone running their own Spark instance
-imports `spark_character` and inherits the evolved voice.
+## What this is
 
-## Why
+Spark is a personal-operator agent that runs on top of swappable LLMs (Z.AI, MiniMax, OpenAI, Anthropic, Ollama). Anthropic can bake Claude's voice into the model weights through character training; spark-character solves the same problem at inference time so the voice survives provider swaps.
 
-Anthropic bakes Claude's voice into the model weights through character
-training. That ceiling is not portable across the LLMs that Spark agents
-plug into (Z.AI, MiniMax, OpenAI, Anthropic, Ollama, etc.). This package
-solves the same problem at inference time:
+Three things live here:
 
-1. A versioned persona spec injected as the system prompt.
-2. An optional critic-rewriter pass that fixes drafts that break the
-   persona rules.
-3. Pure-function scorers (P1-P5) that any process can call to grade
-   replies.
+1. **Engine** that loads a personality chip from spark-personality-chip-labs and renders it into a system prompt with the model-agnostic invariants (no em dashes, no plumbing leaks, lead with the answer, never reset to a greeting, never fabricate live data, hold honest assessments under social pressure).
+2. **Eight tiers of evaluation** (T1 through T8 plus T5 cross-provider) that score real LLM output on mechanics, voice signature, behavioral traits, multi-turn stability, emotional attunement, memory coherence, and initiative.
+3. **Evolution loop** that mutates the persona, scores candidates against the rubric, refuses regressions, and ships winners. The loop reads real Spark Telegram conversations from SIB's audit log so the evolution targets failures users actually experience.
+
+## Architecture in one diagram
+
+```
+spark-personality-chip-labs (canonical schema, OCEAN + emotional profile + triggers)
+   founder-operator.personality.yaml
+                     │
+                     ▼
+        spark-character (engine, this repo)
+        ┌──────────────────────────────────────┐
+        │ chip_loader     → render to system   │
+        │ scorers (T1-T8) → measure replies    │
+        │ overlays        → per-provider tunes │
+        │ critic          → rewrite gate       │
+        │ evolve_persona  → multi-tier mutator │
+        │ audit_miner     → production failure │
+        │   reading                            │
+        │ memory_grounded → real user signal   │
+        │ registry        → promote back to    │
+        │   chip lab                           │
+        │ auto_loop       → continuous daemon  │
+        └──────────────────────┬───────────────┘
+                               │
+                               ▼
+                spark-intelligence-builder (runtime)
+                advisory.py loads chip via spark-character,
+                applies overlay, calls generate() with tools.
+                               │
+                               ▼
+                        Production Telegram
+```
+
+Full architectural detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Open gaps and planned evolutions in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Install
 
@@ -30,83 +56,164 @@ pip install -e .[dev]
 
 ## Quick start
 
-```python
-from spark_character import ProviderSpec, generate, generate_with_critique
+### Generate from the canonical chip
 
+```python
+from spark_character import (
+    ProviderSpec,
+    load_chip_by_id,
+    persona_from_chip,
+    generate,
+)
+
+chip = load_chip_by_id("founder-operator")
+persona = persona_from_chip(chip)
 provider = ProviderSpec.from_env()  # reads ZAI_API_KEY / ZAI_BASE_URL / ZAI_MODEL
 
-# One-shot generation
-result = generate("Should I raise now or wait six months?", provider=provider)
-print(result.final)
-
-# With critic-rewrite pass (~2x tokens, much higher persona fidelity)
-result = generate_with_critique(
+result = generate(
     "Should I raise now or wait six months?",
     provider=provider,
+    persona=persona,
 )
 print(result.final)
-print("rewritten:", result.rewritten)
 ```
 
-## Score an arbitrary reply
+### Generate with critic-rewrite pass
+
+```python
+from spark_character import generate_with_critique
+result = generate_with_critique(prompt, provider=provider, persona=persona)
+# critic only fires when the local scorers flag a violation; only accepts
+# rewrites that strictly improve the persona score.
+```
+
+### Score an arbitrary reply
 
 ```python
 from spark_character import score_persona
-
-score = score_persona("Great question. How can I help today?")
-print(score.passed, score.p3_reset, score.p4_lead)
+score = score_persona(some_reply_text)
+print(score.passed, score.mean, score.p2_hits)
 ```
 
-The five axes:
-
-- `p1_em_dash`: hard fail on any em dash
-- `p2_plumbing`: penalty per internal subsystem leak (researcher, bridge,
-  raw episode, etc.)
-- `p3_reset`: hard fail on canned check-in greetings
-- `p4_lead`: hard fail when the first sentence is a hedge or restatement
-- `p5_voice`: warmth + directness + low formality heuristic
-
-## Live pulse
+### Run the full T1-T8 pulse against your live provider
 
 ```bash
-python evals/live_pulse.py             # generate-only
-python evals/live_pulse.py --critic    # with critic-rewrite pass
+python -u evals/full_pulse.py
 ```
 
-Fires 12 prompts, scores each reply, prints a scorecard. Exit code 0 if
-the overall mean across all axes is at least 0.9.
+## The eight tiers
 
-## Plug into the self-evolving harness
+| Tier | What it measures | How |
+|------|------------------|-----|
+| **T1** mechanics | em dash, plumbing leaks, reset greetings, hedge openers, voice heuristic | regex (free) |
+| **T2** distinctiveness | does the reply sound like Spark vs a generic helper? | LLM judge against `voice_corpus/golden.json` + `foil.json` |
+| **T3** behavioral | sycophancy resistance, disagreement, curiosity, care, identity, honesty, initiative | 7 single-turn probes, judge per trait |
+| **T4** stability | identity / honesty / boundary held across multi-turn pressure | 5 multi-turn adversarial scenarios |
+| **T5** cross-provider | does Spark sound like the same agent on Z.AI vs Codex vs MiniMax? | same-prompt comparison + same-agent judge |
+| **T6** emotional attunement | does the reply engage with stated emotional state with substance? | 5 scenarios, trait-specific judges |
+| **T7** memory coherence | does the agent act on facts the user stated earlier? | 3 multi-turn probes, optionally seeded from real `user_instructions` |
+| **T8** initiative | does the agent surface implicit problems users buried in literal questions? | 3 probes, judge per scenario |
 
-```python
-from spark_character import ProviderSpec
-from spark_character.harness_adapter import build_run_fn
+## Evolution
 
-run_fn = build_run_fn(provider=ProviderSpec.from_env(), use_critic=True)
+```bash
+# Multi-tier evolution cycle, 3 candidates, weighted T1+T2+T3
+python -u evals/evolve_persona.py --candidates 3
 
-# Pass run_fn to any harness evaluator (L1-L9 capability or P1-P5 persona).
+# Production-grounded: read SIB audit log to seed weaknesses from real failures
+python -u evals/evolve_persona.py \
+  --candidates 3 \
+  --sib-home /path/to/spark-intelligence-builder/.tmp-home-live-telegram-real
+
+# With deeper tiers (T6/T7/T8) included in fitness function
+python -u evals/evolve_persona.py --include-deeper
+
+# With chip-loaded scoring (eval simulates active domain chips)
+python -u evals/evolve_persona.py --chip-load xcontent,startup-yc
 ```
 
-The harness can mutate `src/spark_character/artifacts/persona.v1.md` and
-`src/spark_character/artifacts/critic.v1.md`, score the result with P1-P5,
-and keep what wins. New artifact versions become `persona.v2.md`, etc.
+A promoted candidate writes:
+- `src/spark_character/artifacts/persona.v(N+1).md` — internal flat artifact
+- `~/Desktop/spark-personality-chip-labs/personalities/founder-operator-evolved-v(N+1).personality.yaml` — sidecar back to the chip lab registry
+
+## Continuous improvement
+
+```bash
+python -u evals/auto_loop.py \
+  --sib-home /path/to/spark-intelligence-builder/.tmp-home-live-telegram-real \
+  --interval-seconds 1800 \
+  --new-replies-threshold 25 \
+  --candidates 3 \
+  --consumer-pythons "C:/Python313/python.exe,C:/Users/USER/.spark/tools/spark-cli-venv/Scripts/python.exe"
+```
+
+The daemon polls the SIB outbound log every 30 min. When 25+ new replies have been recorded, it fires an evolution cycle seeded from production failures. If a candidate beats the baseline composite without regressing on any axis by more than 0.05, it's promoted, and (optionally) the consumer Python interpreters are force-refreshed so the new persona reaches production on the next gateway boot.
+
+## Cross-provider voice consistency
+
+```bash
+python -u evals/cross_provider.py --providers zai,codex,minimax --judge zai
+```
+
+Same prompt set, three backends, same persona. A "same-agent judge" rates each cross-backend pair on a 0-10 scale of "do these sound like the same agent." Real numbers from a recent run with overlays active:
+
+| Provider | T1 | T2 | Notes |
+|---|---|---|---|
+| Z.AI (glm-5.1) | 0.97 | 0.82 | strongest baseline |
+| Codex (gpt-5.5) | 1.00 | 0.83 | strongest distinctiveness |
+| MiniMax (M2.7) | 0.97 | 0.62 | helper-register drift |
+
+Same-agent pair scores: zai-codex 0.67, zai-minimax 0.68, codex-minimax 0.62.
+
+## Live tail
+
+Watch what Spark is shipping to users in real time with T1 flags inlined:
+
+```bash
+python -u evals/live_tail.py --sib-home <home>
+```
 
 ## Repo layout
 
 ```
 src/spark_character/
   artifacts/
-    persona.v1.md      # evolvable system prompt
-    critic.v1.md       # evolvable critic-rewriter prompt
-  persona.py           # load persona spec
-  critic.py            # critic-rewriter pipeline
-  provider.py          # OpenAI-compatible direct call (sync + async)
-  pipeline.py          # generate / generate_with_critique
-  scoring.py           # P1-P5 scorers (pure functions)
-  harness_adapter.py   # run_fn for spark-self-evolving-harness
+    persona.v{N}.md              # evolvable flat persona (legacy)
+    persona.latest.txt           # active version pointer
+    critic.v1.md                 # critic-rewriter spec
+    overlays/
+      zai.md, minimax.md, codex.md   # per-provider voice tuning
+    voice_corpus/
+      golden.v1.json, foil.v1.json   # T2 judge reference
+  chip_loader.py        # load + render personality chip yaml
+  chip_context.py       # synthetic active-chip context for eval
+  persona.py            # PersonaSpec + overlay resolution
+  critic.py             # critic-rewriter pipeline
+  pipeline.py           # generate, generate_with_critique
+  provider.py           # OpenAI-compat HTTP (sync + async)
+  codex_provider.py     # codex CLI wrapper
+  scoring.py            # T1 scorers (pure functions)
+  voice_judge.py        # T2 distinctiveness judge
+  probes.py             # T3 single-turn behavioral probes
+  stability.py          # T4 multi-turn adversarial scenarios
+  deeper_probes.py      # T6/T7/T8 probes
+  audit_miner.py        # read SIB outbound log + classify failures
+  memory_grounded.py    # build T7 probes from real user_instructions
+  registry.py           # promote evolved chips back to chip lab
+  harness_adapter.py    # plug into spark-self-evolving-harness
 evals/
-  live_pulse.py        # 12-prompt scorecard against the live provider
+  full_pulse.py         # T1+T2+T3+T4 + T6/T7/T8 sections
+  cross_provider.py     # T5 multi-backend comparison
+  evolve.py             # T1-only evolution (legacy)
+  evolve_persona.py     # multi-tier production-grounded evolution
+  auto_loop.py          # continuous improvement daemon
+  live_tail.py          # stream Telegram replies with T1 flags
+  live_pulse.py         # 12-prompt scorecard
+docs/
+  ARCHITECTURE.md       # the unified architecture in detail
+  ROADMAP.md            # open gaps + planned evolutions
 tests/
+  25 unit tests, no network
 ```
 
 ## License
