@@ -38,6 +38,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from spark_character import (  # noqa: E402
     PROBES,
+    AuditMiner,
     PersonaSpec,
     ProviderSpec,
     call_provider,
@@ -195,6 +196,21 @@ def main() -> int:
     parser.add_argument("--floor-drop", type=float, default=0.05, help="Max allowed regression on any single axis")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--out", default="evals/_evolve_persona_last.json")
+    parser.add_argument(
+        "--sib-home",
+        default=None,
+        help="Path to a Spark Intelligence Builder home directory. When set, "
+        "the audit miner reads its gateway-outbound.jsonl and feeds the most "
+        "frequent production T1 failure patterns into the diagnose step so "
+        "the mutator targets what is actually happening to real users, not "
+        "just synthetic probe failures.",
+    )
+    parser.add_argument(
+        "--audit-limit",
+        type=int,
+        default=200,
+        help="How many recent SIB outbound rows to mine when --sib-home is set.",
+    )
     args = parser.parse_args()
 
     weights = tuple(float(x) for x in args.weights.split(","))
@@ -215,6 +231,21 @@ def main() -> int:
     )
 
     weaknesses = diagnose(baseline_scores)
+
+    if args.sib_home:
+        miner = AuditMiner.from_sib_home(args.sib_home)
+        live = miner.recent_findings(limit=args.audit_limit)
+        print(live.summary())
+        print()
+        production_lines = live.diagnose_lines(max_per_kind=2)
+        if production_lines:
+            weaknesses = production_lines + weaknesses
+            print(
+                f"Augmented diagnose with {len(production_lines)} production failure "
+                f"line(s) from real Telegram conversations."
+            )
+            print()
+
     print("Diagnosed weaknesses:")
     for w in weaknesses:
         print(f"  - {w}")

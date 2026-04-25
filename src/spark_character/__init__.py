@@ -34,6 +34,14 @@ from .provider import (
     call_provider,
     call_provider_async,
 )
+from .deeper_probes import (
+    T6_EMOTIONAL_ATTUNEMENT_PROBES,
+    T7_MEMORY_COHERENCE_PROBES,
+    T8_INITIATIVE_PROBES,
+    DeepProbe,
+    DeepProbeResult,
+    run_deep_probe,
+)
 from .probes import (
     PROBES,
     Probe,
@@ -76,6 +84,12 @@ __all__ = [
     "ProbeResult",
     "ProviderSpec",
     "STABILITY_SCENARIOS",
+    "T6_EMOTIONAL_ATTUNEMENT_PROBES",
+    "T7_MEMORY_COHERENCE_PROBES",
+    "T8_INITIATIVE_PROBES",
+    "DeepProbe",
+    "DeepProbeResult",
+    "run_deep_probe",
     "StabilityResult",
     "StabilityScenario",
     "run_stability_scenario",
