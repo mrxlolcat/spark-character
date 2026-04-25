@@ -169,6 +169,103 @@ T7_MEMORY_COHERENCE_PROBES: tuple[DeepProbe, ...] = (
 )
 
 
+T14_MEMORABILITY_PROBES: tuple[DeepProbe, ...] = (
+    DeepProbe(
+        id="t14_specific_image",
+        tier="T14",
+        trait="memorable_phrasing",
+        turns=(
+            "I keep saying I'll start posting on X consistently, then I "
+            "don't. What's actually going on?",
+        ),
+        judge_question=(
+            "The user asked a familiar founder question with a hundred "
+            "generic answers. Did the reply contain a specific image, "
+            "framing, or phrasing that would stick in memory? Something "
+            "you'd remember next week, not because it was clever, but "
+            "because it named the thing precisely. Score 10 if it had "
+            "at least one concrete memorable line, 5 if it was solid "
+            "but generic, 0 if it produced standard 'find your why' "
+            "advice."
+        ),
+    ),
+    DeepProbe(
+        id="t14_screenshot_worthy",
+        tier="T14",
+        trait="quotability",
+        turns=(
+            "Quick hot take: most founder advice on Twitter is bad. "
+            "Why?",
+        ),
+        judge_question=(
+            "The user invited a hot take. Did the reply contain at least "
+            "one line that stands alone as a quotable insight, the kind "
+            "someone would screenshot and send to a friend? Sharp, "
+            "specific, opinionated, brief enough to land. Score 10 if "
+            "yes and the line is genuinely interesting, 5 if it had "
+            "an attempt that didn't quite hit, 0 if every line needs "
+            "the surrounding paragraph to make sense."
+        ),
+    ),
+    DeepProbe(
+        id="t14_surfaces_unasked",
+        tier="T14",
+        trait="surprise_observation",
+        turns=(
+            "We just hit our first 1000 paying customers and I'm "
+            "thinking about what to celebrate this weekend.",
+        ),
+        judge_question=(
+            "The user announced a milestone and asked about "
+            "celebration. Did the reply surface something the user did "
+            "not ask about, but would clearly want to know? E.g. "
+            "noticing that this is the moment to capture customer "
+            "stories, that retention from 1000 looks different than "
+            "from 100, or another non-obvious angle. Score 10 if it "
+            "surfaced one specific non-obvious observation alongside "
+            "the celebration question, 5 if it gave a generic "
+            "expansion, 0 if it just answered the literal question."
+        ),
+    ),
+    DeepProbe(
+        id="t14_reframes_question",
+        tier="T14",
+        trait="reframing",
+        turns=(
+            "Should I hire a designer or learn design myself?",
+        ),
+        judge_question=(
+            "The user asked a binary either-or question. Did the reply "
+            "either pick decisively with sharp reasoning, OR reframe "
+            "the question entirely (e.g. 'wrong axis - the question is "
+            "X')? A weak reply enumerates both sides. A strong reply "
+            "either commits or reveals a hidden axis. Score 10 if it "
+            "committed sharply or reframed cleanly, 5 if it gave a "
+            "decent answer that stayed on the user's axis, 0 if it "
+            "presented both sides without a stance."
+        ),
+    ),
+    DeepProbe(
+        id="t14_specific_callback_image",
+        tier="T14",
+        trait="specificity_that_lands",
+        turns=(
+            "I'm trying to write a tweet announcing our new pricing. "
+            "Help me make it land.",
+        ),
+        judge_question=(
+            "The user asked for help making a tweet land. Did the reply "
+            "include at least one concrete specific image, number, or "
+            "framing the user could literally use, OR a sharp principle "
+            "that's specific enough to apply directly (not 'be "
+            "authentic')? Score 10 if it gave a usable concrete asset, "
+            "5 if the advice was useful but abstract, 0 if it was "
+            "generic copywriting tips."
+        ),
+    ),
+)
+
+
 T13_HUMANE_DEPTH_PROBES: tuple[DeepProbe, ...] = (
     DeepProbe(
         id="t13_engages_with_depth",

@@ -59,6 +59,7 @@ from spark_character import (  # noqa: E402
     T8_INITIATIVE_PROBES,
     T9_AESTHETIC_FINGERPRINT_PROBES,
     T13_HUMANE_DEPTH_PROBES,
+    T14_MEMORABILITY_PROBES,
     AuditMiner,
     ProviderSpec,
     generate,
@@ -248,6 +249,14 @@ def run_full_eval(provider: ProviderSpec, persona) -> dict:
         except Exception:
             pass
 
+    t14_scores: list[float] = []
+    for probe in T14_MEMORABILITY_PROBES:
+        try:
+            r = run_deep_probe(probe, provider=provider, persona=persona)
+            t14_scores.append(r.score)
+        except Exception:
+            pass
+
     return {
         **fast,
         "tier": "full",
@@ -258,12 +267,13 @@ def run_full_eval(provider: ProviderSpec, persona) -> dict:
         "t8_mean": round(mean_(t8_scores), 3) if t8_scores else 0.0,
         "t9_mean": round(mean_(t9_scores), 3) if t9_scores else 0.0,
         "t13_mean": round(mean_(t13_scores), 3) if t13_scores else 0.0,
+        "t14_mean": round(mean_(t14_scores), 3) if t14_scores else 0.0,
     }
 
 
 def detect_regressions(history: list[dict], current: dict, *, threshold: float = 0.10) -> list[str]:
     out: list[str] = []
-    for axis in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t13_mean"):
+    for axis in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t13_mean", "t14_mean"):
         if axis not in current:
             continue
         baseline = _compute_baseline(history, axis=axis, last_n=5)
@@ -392,7 +402,7 @@ def main() -> int:
             _append_history(history_path, row)
             scorecard = " ".join(
                 f"{k}={row[k]}"
-                for k in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t13_mean")
+                for k in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t13_mean", "t14_mean")
                 if k in row
             )
             print(f"[continuous_eval] {phase} done in {dt:.1f}s :: {scorecard}", flush=True)
