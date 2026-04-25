@@ -44,12 +44,18 @@ def generate(
     max_tokens: int = 600,
     temperature: float = 0.7,
     disable_thinking: bool = True,
+    tools: list[dict] | None = None,
 ) -> GenerationResult:
     """Generate a Spark reply. disable_thinking defaults to True so the
     reasoning phase of reasoning models (GLM 5.1, o1-style) does not
     leak structured "1. Analyze the Request" prefixes into the visible
     output when the token budget is tight. Pass False if you want the
-    model to think aloud (only meaningful for some backends)."""
+    model to think aloud (only meaningful for some backends).
+
+    Pass tools=[{...}] to attach native tools the backend supports for
+    this turn (e.g. [{"type": "web_search", "web_search": {"enable": True}}]
+    on Z.AI). The model decides when to call them; the final reply text
+    is returned."""
     p = persona or load_persona()
     draft = call_provider(
         provider=provider,
@@ -59,6 +65,7 @@ def generate(
         temperature=temperature,
         extra_messages=history,
         disable_thinking=disable_thinking,
+        tools=tools,
     )
     return GenerationResult(
         final=draft,

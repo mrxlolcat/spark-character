@@ -59,12 +59,17 @@ def call_provider(
     temperature: float = 0.7,
     extra_messages: list[dict[str, str]] | None = None,
     disable_thinking: bool = False,
+    tools: list[dict[str, Any]] | None = None,
 ) -> str:
     """Synchronous chat-completions call. Returns the assistant text only.
 
     Pass disable_thinking=True for short structured outputs (judge scores,
     classifiers) when the backend is a reasoning model whose thinking
     phase can exhaust the token budget before any visible output lands.
+
+    Pass tools=[{...}] to attach native tools the provider supports (e.g.
+    Z.AI's `web_search`). The provider chooses when to call them; the
+    final assistant text is returned to the caller.
     """
     messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
     if extra_messages:
@@ -78,6 +83,8 @@ def call_provider(
     }
     if disable_thinking:
         payload["thinking"] = {"type": "disabled"}
+    if tools:
+        payload["tools"] = tools
     headers = {
         "Authorization": f"Bearer {provider.api_key}",
         "Content-Type": "application/json",
@@ -99,6 +106,7 @@ async def call_provider_async(
     temperature: float = 0.7,
     extra_messages: list[dict[str, str]] | None = None,
     disable_thinking: bool = False,
+    tools: list[dict[str, Any]] | None = None,
 ) -> str:
     messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
     if extra_messages:
@@ -112,6 +120,8 @@ async def call_provider_async(
     }
     if disable_thinking:
         payload["thinking"] = {"type": "disabled"}
+    if tools:
+        payload["tools"] = tools
     headers = {
         "Authorization": f"Bearer {provider.api_key}",
         "Content-Type": "application/json",
