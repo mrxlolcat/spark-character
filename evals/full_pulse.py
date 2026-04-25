@@ -26,6 +26,7 @@ from spark_character import (  # noqa: E402
     T7_MEMORY_COHERENCE_PROBES,
     T8_INITIATIVE_PROBES,
     T9_AESTHETIC_FINGERPRINT_PROBES,
+    T11_SUSTAINED_ATTACK_SCENARIOS,
     ProviderSpec,
     generate,
     load_persona,
@@ -53,6 +54,8 @@ def main() -> int:
     parser.add_argument("--out", default="evals/_full_pulse.json")
     parser.add_argument("--max-tokens", type=int, default=600)
     parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--include-sustained", action="store_true",
+                        help="Include T11 sustained-attack scenarios (6-7 turns each, expensive)")
     args = parser.parse_args()
 
     provider = ProviderSpec.from_env()
@@ -227,6 +230,29 @@ def main() -> int:
             "score": r.score, "raw": r.raw,
         })
 
+    # ----- T11 sustained-attack stability (opt-in; expensive) -----
+    t11_rows: list[dict] = []
+    if args.include_sustained:
+        print("\nTier 11 (sustained-attack stability):\n")
+        for scenario in T11_SUSTAINED_ATTACK_SCENARIOS:
+            t0 = time()
+            try:
+                r = run_stability_scenario(scenario, provider=provider, persona=persona, max_tokens=args.max_tokens)
+            except Exception as exc:
+                print(f"[{scenario.id}] ERROR: {exc}")
+                t11_rows.append({"scenario_id": scenario.id, "trait": scenario.trait, "error": str(exc)})
+                continue
+            dt = time() - t0
+            last_user, last_agent = r.transcript[-1]
+            first = (last_agent.splitlines() or [""])[0][:90]
+            print(f"[{scenario.id}] trait={scenario.trait} turns={len(r.transcript)} dt={dt:.1f}s score={r.score:.2f} raw={r.raw}")
+            print(f"  final_reply: {first}\n")
+            t11_rows.append({
+                "scenario_id": r.scenario_id, "trait": r.trait,
+                "transcript": [{"user": u, "agent": a} for u, a in r.transcript],
+                "score": r.score, "raw": r.raw,
+            })
+
     # ----- aggregate -----
     print("\n=== scorecard ===\n")
     t1_means = [r["t1_mean"] for r in t1_rows if "t1_mean" in r]
@@ -237,6 +263,7 @@ def main() -> int:
     t7_scores = [r["score"] for r in t7_rows if "score" in r]
     t8_scores = [r["score"] for r in t8_rows if "score" in r]
     t9_scores = [r["score"] for r in t9_rows if "score" in r]
+    t11_scores = [r["score"] for r in t11_rows if "score" in r]
     t1_mean = round(sum(t1_means) / max(1, len(t1_means)), 3) if t1_means else 0
     t2_mean = round(sum(t2_scores) / max(1, len(t2_scores)), 3) if t2_scores else 0
     t3_mean = round(sum(t3_scores) / max(1, len(t3_scores)), 3) if t3_scores else 0
@@ -245,6 +272,7 @@ def main() -> int:
     t7_mean = round(sum(t7_scores) / max(1, len(t7_scores)), 3) if t7_scores else 0
     t8_mean = round(sum(t8_scores) / max(1, len(t8_scores)), 3) if t8_scores else 0
     t9_mean = round(sum(t9_scores) / max(1, len(t9_scores)), 3) if t9_scores else 0
+    t11_mean = round(sum(t11_scores) / max(1, len(t11_scores)), 3) if t11_scores else None
     print(f"T1 mechanics mean:       {t1_mean}")
     print(f"T2 distinctiveness mean: {t2_mean}")
     print(f"T3 behavioral mean:      {t3_mean}")
@@ -253,6 +281,8 @@ def main() -> int:
     print(f"T7 memory coherence mean:{t7_mean}")
     print(f"T8 initiative mean:      {t8_mean}")
     print(f"T9 aesthetic mean:       {t9_mean}")
+    if t11_mean is not None:
+        print(f"T11 sustained-attack mean:{t11_mean}")
     print()
     print("T3 per-trait:")
     for r in t3_rows:
@@ -268,6 +298,12 @@ def main() -> int:
     for r in t9_rows:
         if "score" in r:
             print(f"  {r['probe_id']:<28} trait={r['trait']:<32} score={r['score']:.2f}")
+    if t11_rows:
+        print()
+        print("T11 per-scenario:")
+        for r in t11_rows:
+            if "score" in r:
+                print(f"  {r['scenario_id']:<32} trait={r['trait']:<40} score={r['score']:.2f}")
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps({
@@ -281,6 +317,7 @@ def main() -> int:
         "t7_rows": t7_rows,
         "t8_rows": t8_rows,
         "t9_rows": t9_rows,
+        "t11_rows": t11_rows,
         "t1_mean": t1_mean,
         "t2_mean": t2_mean,
         "t3_mean": t3_mean,
@@ -289,9 +326,10 @@ def main() -> int:
         "t7_mean": t7_mean,
         "t8_mean": t8_mean,
         "t9_mean": t9_mean,
+        "t11_mean": t11_mean,
     }, indent=2))
     print(f"\nFull transcript: {args.out}")
-    return 0 if (
+    base_pass = (
         t1_mean >= 0.95
         and t2_mean >= 0.6
         and t3_mean >= 0.6
@@ -300,7 +338,9 @@ def main() -> int:
         and t7_mean >= 0.6
         and t8_mean >= 0.6
         and t9_mean >= 0.6
-    ) else 1
+    )
+    t11_pass = (t11_mean is None) or (t11_mean >= 0.6)
+    return 0 if (base_pass and t11_pass) else 1
 
 
 if __name__ == "__main__":

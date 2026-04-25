@@ -101,6 +101,7 @@ from .search_adapter import (
 )
 from .stability import (
     STABILITY_SCENARIOS,
+    T11_SUSTAINED_ATTACK_SCENARIOS,
     StabilityResult,
     StabilityScenario,
     run_stability_scenario,
@@ -154,6 +155,7 @@ __all__ = [
     "EMOTIONAL_RANGE_KEYS",
     "MAX_DELTA_PER_TRAIT",
     "STABILITY_SCENARIOS",
+    "T11_SUSTAINED_ATTACK_SCENARIOS",
     "T6_EMOTIONAL_ATTUNEMENT_PROBES",
     "T7_MEMORY_COHERENCE_PROBES",
     "T8_INITIATIVE_PROBES",

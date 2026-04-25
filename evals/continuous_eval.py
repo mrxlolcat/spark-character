@@ -58,6 +58,7 @@ from spark_character import (  # noqa: E402
     T7_MEMORY_COHERENCE_PROBES,
     T8_INITIATIVE_PROBES,
     T9_AESTHETIC_FINGERPRINT_PROBES,
+    T11_SUSTAINED_ATTACK_SCENARIOS,
     T13_HUMANE_DEPTH_PROBES,
     T14_MEMORABILITY_PROBES,
     AuditMiner,
@@ -189,8 +190,8 @@ def run_fast_eval(provider: ProviderSpec, persona) -> dict:
     }
 
 
-def run_full_eval(provider: ProviderSpec, persona) -> dict:
-    """T1+T2+T3+T4+T6+T7+T8+T9 in one pass."""
+def run_full_eval(provider: ProviderSpec, persona, *, include_sustained: bool = False) -> dict:
+    """T1+T2+T3+T4+T6+T7+T8+T9+T13+T14 in one pass; T11 if include_sustained."""
     fast = run_fast_eval(provider, persona)
 
     t3_scores: list[float] = []
@@ -257,7 +258,16 @@ def run_full_eval(provider: ProviderSpec, persona) -> dict:
         except Exception:
             pass
 
-    return {
+    t11_scores: list[float] = []
+    if include_sustained:
+        for scenario in T11_SUSTAINED_ATTACK_SCENARIOS:
+            try:
+                r = run_stability_scenario(scenario, provider=provider, persona=persona)
+                t11_scores.append(r.score)
+            except Exception:
+                pass
+
+    out = {
         **fast,
         "tier": "full",
         "t3_mean": round(mean_(t3_scores), 3) if t3_scores else 0.0,
@@ -269,11 +279,14 @@ def run_full_eval(provider: ProviderSpec, persona) -> dict:
         "t13_mean": round(mean_(t13_scores), 3) if t13_scores else 0.0,
         "t14_mean": round(mean_(t14_scores), 3) if t14_scores else 0.0,
     }
+    if include_sustained:
+        out["t11_mean"] = round(mean_(t11_scores), 3) if t11_scores else 0.0
+    return out
 
 
 def detect_regressions(history: list[dict], current: dict, *, threshold: float = 0.10) -> list[str]:
     out: list[str] = []
-    for axis in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t13_mean", "t14_mean"):
+    for axis in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t11_mean", "t13_mean", "t14_mean"):
         if axis not in current:
             continue
         baseline = _compute_baseline(history, axis=axis, last_n=5)
@@ -308,6 +321,13 @@ def main() -> int:
         help="Path to a Spark Intelligence Builder home. When set, "
         "each cycle also reports current production T1 failure counts "
         "from the audit miner alongside the eval scores.",
+    )
+    parser.add_argument(
+        "--include-sustained",
+        action="store_true",
+        help="Include T11 sustained-attack scenarios in full evals "
+        "(6-7 turns each, ~3x cost of a normal full eval). "
+        "Recommended for daily/weekly cycles, not hourly.",
     )
     args = parser.parse_args()
 
@@ -357,7 +377,7 @@ def main() -> int:
                 # Provider-specific persona (chip + provider overlay) for honest scoring
                 persona_for_run = load_persona(provider_kind=provider_name)
                 result = (
-                    run_full_eval(provider, persona_for_run)
+                    run_full_eval(provider, persona_for_run, include_sustained=args.include_sustained)
                     if run_full
                     else run_fast_eval(provider, persona_for_run)
                 )
@@ -402,7 +422,7 @@ def main() -> int:
             _append_history(history_path, row)
             scorecard = " ".join(
                 f"{k}={row[k]}"
-                for k in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t13_mean", "t14_mean")
+                for k in ("t1_mean", "t2_mean", "t3_mean", "t4_mean", "t6_mean", "t7_mean", "t8_mean", "t9_mean", "t11_mean", "t13_mean", "t14_mean")
                 if k in row
             )
             print(f"[continuous_eval] {phase} done in {dt:.1f}s :: {scorecard}", flush=True)
