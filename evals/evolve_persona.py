@@ -443,6 +443,22 @@ def main() -> int:
         (ARTIFACTS_DIR / "persona.latest.txt").write_text(f"v{new_n}\n", encoding="utf-8")
         print(f"\nPROMOTED: candidate {winner['index']} -> {new_path.name}")
         print(f"  reason: {promote_reason}")
+        # Sidecar promotion to spark-personality-chip-labs registry
+        try:
+            from spark_character import promote_evolved_persona_to_chip_lab
+            chip_lab_path = promote_evolved_persona_to_chip_lab(
+                base_chip_id="founder-operator",
+                base_persona_version=f"v{n}",
+                new_persona_version=f"v{new_n}",
+                persona_markdown=winner["text"],
+                composite_score=winner["composite"],
+            )
+            if chip_lab_path is not None:
+                print(f"  registry: also wrote {chip_lab_path}")
+            else:
+                print("  registry: chip lab not found locally, skipped sidecar promotion")
+        except Exception as exc:
+            print(f"  registry: sidecar promotion failed: {exc}")
     elif promote:
         print(f"\nWOULD PROMOTE candidate {winner['index']} (dry-run)")
     else:

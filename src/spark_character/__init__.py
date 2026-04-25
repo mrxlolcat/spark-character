@@ -63,6 +63,10 @@ from .memory_grounded import (
     memory_grounded_summary,
     state_distribution,
 )
+from .registry import (
+    find_chip_lab_path,
+    promote_evolved_persona_to_chip_lab,
+)
 from .probes import (
     PROBES,
     Probe,
@@ -107,7 +111,9 @@ __all__ = [
     "ProviderSpec",
     "attach_chip_context",
     "chip_context_for",
+    "find_chip_lab_path",
     "known_chip_keys",
+    "promote_evolved_persona_to_chip_lab",
     "load_chip",
     "load_chip_by_id",
     "persona_from_chip",
