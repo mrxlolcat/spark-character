@@ -43,20 +43,53 @@ from spark_character.persona import resolve_latest_persona_version  # noqa: E402
 
 
 STATE_FILE_DEFAULT = Path("evals/_auto_loop_state.json")
+HEARTBEAT_FILE_DEFAULT = Path("evals/_auto_loop_heartbeat.txt")
 
 
 def _load_state(path: Path) -> dict:
     if not path.exists():
-        return {"last_evolved_at": 0, "last_audit_count": 0, "last_persona_version": None}
+        return {
+            "last_evolved_at": 0,
+            "last_audit_count": 0,
+            "last_persona_version": None,
+            "last_cycle_phase": "idle",
+            "last_cycle_started_at": 0,
+            "last_promoted_at": 0,
+            "loop_starts": 0,
+            "cycle_count": 0,
+            "promotion_count": 0,
+        }
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return {"last_evolved_at": 0, "last_audit_count": 0, "last_persona_version": None}
+        return {
+            "last_evolved_at": 0,
+            "last_audit_count": 0,
+            "last_persona_version": None,
+            "last_cycle_phase": "idle",
+            "last_cycle_started_at": 0,
+            "last_promoted_at": 0,
+            "loop_starts": 0,
+            "cycle_count": 0,
+            "promotion_count": 0,
+        }
 
 
 def _save_state(path: Path, state: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
+def _write_heartbeat(path: Path, phase: str) -> None:
+    """Touch a heartbeat file with current epoch + phase. External
+    monitors can watch the modtime and the contents to detect a hung
+    daemon. Called before/after every loop iteration and around evolve
+    subprocess invocations."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"{int(time.time())} {phase}\n", encoding="utf-8")
+    except Exception:
+        pass
 
 
 def count_llm_replies(sib_home: str) -> int:
@@ -117,6 +150,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--once", action="store_true", help="Run a single check then exit")
     parser.add_argument("--state-file", default=str(STATE_FILE_DEFAULT))
+    parser.add_argument("--heartbeat-file", default=str(HEARTBEAT_FILE_DEFAULT))
     parser.add_argument("--evolve-timeout", type=int, default=2400)
     parser.add_argument(
         "--consumer-pythons",
@@ -128,10 +162,26 @@ def main() -> int:
     args = parser.parse_args()
 
     state_path = Path(args.state_file)
+    heartbeat_path = Path(args.heartbeat_file)
     repo_root = _REPO_ROOT
+
+    # Bump loop_starts so external monitors can see daemon restarts
+    boot_state = _load_state(state_path)
+    if boot_state.get("last_cycle_phase") not in ("idle", "complete", None):
+        print(
+            f"[auto_loop] WARNING last cycle ended in phase "
+            f"{boot_state.get('last_cycle_phase')!r} at "
+            f"{boot_state.get('last_cycle_started_at')!r}. Likely killed mid-cycle.",
+            flush=True,
+        )
+    boot_state["loop_starts"] = int(boot_state.get("loop_starts", 0)) + 1
+    boot_state["last_cycle_phase"] = "idle"
+    _save_state(state_path, boot_state)
+    _write_heartbeat(heartbeat_path, "boot")
 
     while True:
         try:
+            _write_heartbeat(heartbeat_path, "loop_check")
             state = _load_state(state_path)
             current = count_llm_replies(args.sib_home)
             new_replies = current - state.get("last_audit_count", 0)
@@ -145,13 +195,24 @@ def main() -> int:
             )
             should_fire = new_replies >= args.new_replies_threshold or state.get("last_audit_count", 0) == 0
             if should_fire:
+                state["last_cycle_phase"] = "evolving"
+                state["last_cycle_started_at"] = int(time.time())
+                state["cycle_count"] = int(state.get("cycle_count", 0)) + 1
+                _save_state(state_path, state)
+                _write_heartbeat(heartbeat_path, "evolving")
                 promoted, _log = run_evolve_cycle(args, repo_root)
                 state["last_evolved_at"] = int(time.time())
                 state["last_audit_count"] = current
                 state["last_persona_version"] = resolve_latest_persona_version()
+                state["last_cycle_phase"] = "complete"
                 _save_state(state_path, state)
+                _write_heartbeat(heartbeat_path, "post_evolve")
                 if promoted:
+                    state["last_promoted_at"] = int(time.time())
+                    state["promotion_count"] = int(state.get("promotion_count", 0)) + 1
+                    _save_state(state_path, state)
                     print(f"[auto_loop] promoted to {state['last_persona_version']}")
+                    _write_heartbeat(heartbeat_path, "refreshing_consumers")
                     maybe_refresh_consumers(args)
                 else:
                     print("[auto_loop] no promotion this cycle")
