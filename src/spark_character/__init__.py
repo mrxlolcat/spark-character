@@ -88,6 +88,13 @@ from .scoring import (
     PersonaScore,
     score_persona,
 )
+from .search_adapter import (
+    SearchResult,
+    attach_search_context,
+    detect_needs_live_data,
+    extract_search_query,
+    search_results_for,
+)
 from .stability import (
     STABILITY_SCENARIOS,
     StabilityResult,
@@ -120,6 +127,11 @@ __all__ = [
     "Probe",
     "ProbeResult",
     "ProviderSpec",
+    "SearchResult",
+    "attach_search_context",
+    "detect_needs_live_data",
+    "extract_search_query",
+    "search_results_for",
     "attach_chip_context",
     "chip_context_for",
     "find_chip_lab_path",

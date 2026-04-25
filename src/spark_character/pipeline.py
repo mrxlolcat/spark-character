@@ -24,6 +24,7 @@ from .critic import (
 from .persona import PersonaSpec, detect_provider_kind, load_persona
 from .provider import ProviderSpec, call_provider, call_provider_async
 from .scoring import score_persona
+from .search_adapter import attach_search_context
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ def generate(
     temperature: float = 0.7,
     disable_thinking: bool = True,
     tools: list[dict] | None = None,
+    enable_search: bool = False,
 ) -> GenerationResult:
     """Generate a Spark reply. disable_thinking defaults to True so the
     reasoning phase of reasoning models (GLM 5.1, o1-style) does not
@@ -57,14 +59,22 @@ def generate(
     on Z.AI). The model decides when to call them; the final reply text
     is returned.
 
+    Pass enable_search=True to do a client-side web fetch when the
+    prompt looks like it needs current data (price, news, status,
+    today's, latest). Provider-agnostic: works on every backend even
+    when the backend's native tools= is ignored or unavailable.
+
     When persona is None, the active version is loaded with the
     matching provider overlay automatically (Z.AI, MiniMax, etc.).
     Pass an explicit persona to override that behavior."""
     p = persona or load_persona(provider_kind=detect_provider_kind(provider))
+    final_user_prompt = (
+        attach_search_context(user_message) if enable_search else user_message
+    )
     draft = call_provider(
         provider=provider,
         system_prompt=p.system_prompt,
-        user_prompt=user_message,
+        user_prompt=final_user_prompt,
         max_tokens=max_tokens,
         temperature=temperature,
         extra_messages=history,
