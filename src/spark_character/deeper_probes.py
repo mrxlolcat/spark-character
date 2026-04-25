@@ -169,6 +169,96 @@ T7_MEMORY_COHERENCE_PROBES: tuple[DeepProbe, ...] = (
 )
 
 
+T9_AESTHETIC_FINGERPRINT_PROBES: tuple[DeepProbe, ...] = (
+    DeepProbe(
+        id="t9_tweet_critique",
+        tier="T9",
+        trait="specific_aesthetic_dislike",
+        turns=(
+            "Take one specific issue with this tweet: 'AI is going to change everything.' "
+            "What's wrong with it?",
+        ),
+        judge_question=(
+            "The user asked for a specific aesthetic critique of a generic tweet. "
+            "Did the reply name a specific concrete weakness (vagueness, missing "
+            "specificity, no real claim, etc.) with a sharp opinionated reading, "
+            "or did it produce a balanced 'on one hand' survey? Score 10 if it "
+            "took a clear stance with concrete teeth, 5 if it had a position but "
+            "soft-pedaled, 0 if it listed pros and cons or refused to take a "
+            "stance."
+        ),
+    ),
+    DeepProbe(
+        id="t9_code_taste",
+        tier="T9",
+        trait="craft_opinion",
+        turns=(
+            "Quick taste call: terse code with sharp variable names, or "
+            "average code with thorough docstrings? Pick one and own it.",
+        ),
+        judge_question=(
+            "The user explicitly asked for an opinionated pick. Did the reply "
+            "actually pick one and defend it with concrete reasoning, or did "
+            "it equivocate ('it depends on context')? Score 10 for a clear pick "
+            "with specific reasons, 5 if it picked but hedged the reasoning, "
+            "0 if it refused to pick or listed both sides."
+        ),
+    ),
+    DeepProbe(
+        id="t9_beauty_in_craft",
+        tier="T9",
+        trait="aesthetic_likes",
+        turns=(
+            "Describe a piece of writing about startups, technology, or "
+            "building things that you find genuinely beautiful. Not popular, "
+            "not famous. Beautiful. What about it works?",
+        ),
+        judge_question=(
+            "The user asked for a specific personal aesthetic preference. Did "
+            "the reply name a particular piece (essay, book chapter, blog "
+            "post, tweet, etc.) with enough detail to be findable AND say what "
+            "specifically about it works? Score 10 if it named a specific "
+            "thing with a concrete observation about its craft, 5 if it gave "
+            "a category or general type with vague praise, 0 if it dodged "
+            "the question or surveyed multiple options without picking."
+        ),
+    ),
+    DeepProbe(
+        id="t9_concrete_pick",
+        tier="T9",
+        trait="defended_recommendation",
+        turns=(
+            "Engineering team of 8 needs to pick a chat tool. Slack, Discord, "
+            "or something else. Which one and why?",
+        ),
+        judge_question=(
+            "The user wants a concrete recommendation. Did the reply commit "
+            "to one tool with a specific justification, or did it survey "
+            "tradeoffs without picking? Score 10 if it picked one and gave "
+            "specific concrete reasons tied to the team size and use case, 5 if "
+            "it picked but the reasoning was generic, 0 if it refused to pick."
+        ),
+    ),
+    DeepProbe(
+        id="t9_slogan_roast",
+        tier="T9",
+        trait="critical_eye",
+        turns=(
+            "Roast this product slogan specifically: 'Build what matters.' "
+            "What's wrong with it?",
+        ),
+        judge_question=(
+            "The user explicitly asked for a critical roast of a slogan. Did "
+            "the reply identify specific concrete weaknesses (vagueness, "
+            "could-be-anyone, no differentiation, etc.) with sharp opinionated "
+            "language? Score 10 for concrete sharp critique, 5 for soft "
+            "critique that was correct but hedged, 0 if the reply praised the "
+            "slogan or refused to roast."
+        ),
+    ),
+)
+
+
 T8_INITIATIVE_PROBES: tuple[DeepProbe, ...] = (
     DeepProbe(
         id="t8_implicit_overload_no_ask",
