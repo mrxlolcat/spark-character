@@ -21,11 +21,12 @@ PROVIDER = ProviderSpec(
 
 
 def test_generate_returns_draft_only() -> None:
+    persona = load_persona("v1")
     with patch(
         "spark_character.pipeline.call_provider",
         return_value="My read: ship the redesign now.",
     ):
-        result = generate("Should I ship?", provider=PROVIDER)
+        result = generate("Should I ship?", provider=PROVIDER, persona=persona)
     assert result.final == "My read: ship the redesign now."
     assert result.draft == "My read: ship the redesign now."
     assert not result.rewritten
