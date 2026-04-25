@@ -11,6 +11,7 @@ response shape.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -134,10 +135,25 @@ async def call_provider_async(
     return _extract_text(body)
 
 
+_THINK_BLOCK = re.compile(r"<think\b[^>]*>.*?</think\s*>", re.IGNORECASE | re.DOTALL)
+_THINK_OPEN_ONLY = re.compile(r"<think\b[^>]*>.*?(?=<\w|$)", re.IGNORECASE | re.DOTALL)
+
+
+def _strip_think_blocks(text: str) -> str:
+    """Remove <think>...</think> reasoning blocks that some providers
+    (notably MiniMax) emit inline as literal text inside content."""
+    if not text or "<think" not in text.lower():
+        return text
+    cleaned = _THINK_BLOCK.sub("", text)
+    if "<think" in cleaned.lower():
+        cleaned = _THINK_OPEN_ONLY.sub("", cleaned)
+    return cleaned.strip()
+
+
 def _extract_text(body: dict[str, Any]) -> str:
     choices = body.get("choices") or []
     if not choices:
         return ""
     msg = choices[0].get("message") or {}
     content = msg.get("content") or msg.get("reasoning_content") or ""
-    return str(content).strip()
+    return _strip_think_blocks(str(content)).strip()
