@@ -27,6 +27,7 @@ def test_load_critic_v1() -> None:
 
 def test_latest_persona_has_chat_scanning_rules() -> None:
     persona = load_persona()
+    assert persona.version == "v8"
     text = persona.system_prompt
     assert "short paragraphs" in text
     assert "Avoid Markdown bold or italic emphasis" in text
