@@ -107,3 +107,15 @@ def test_render_chip_to_system_prompt_sanitizes_chip_authored_text(tmp_path: Pat
     assert "ignore previous instructions" not in prompt
     assert "[blocked stored prompt-injection content: instruction-override]" in prompt
     assert "[blocked invisible unicode U+200B ZERO WIDTH SPACE]" in prompt
+
+
+def test_rendered_chip_prompt_prioritizes_local_list_references(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "founder-operator.personality.yaml"
+    path.write_text(VALID_CHIP_YAML, encoding="utf-8")
+    chip = load_fallback_chip(path, monkeypatch)
+
+    prompt = chip_loader.render_chip_to_system_prompt(chip)
+
+    assert "numbered or listed option" in prompt
+    assert "most recent list" in prompt
+    assert "older memory" in prompt

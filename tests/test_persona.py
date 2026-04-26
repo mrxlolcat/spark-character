@@ -39,6 +39,8 @@ def test_latest_persona_has_chat_scanning_rules() -> None:
     assert "short paragraphs" in text
     assert "Avoid Markdown bold or italic emphasis" in text
     assert "Break dense answers into small chunks" in text
+    assert "numbered or listed option" in text
+    assert "most recent list" in text
 
 
 def test_persona_text_has_no_em_dash() -> None:
