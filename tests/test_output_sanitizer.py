@@ -6,6 +6,7 @@ from spark_character import (
     sanitize_voice_output,
     strip_markdown_emphasis,
 )
+from spark_character.output_sanitizer import strip_format_controls
 from spark_character.scoring import score_persona
 
 
@@ -22,6 +23,27 @@ def test_all_em_dash_family_chars_handled():
         out = replace_em_dashes(text)
         assert ch not in out
         assert "alpha - beta" == out
+
+
+def test_unicode_dash_punctuation_family_handled():
+    for ch in ("\u2010", "\u2011", "\u2e3a", "\u2e3b"):
+        text = f"alpha {ch} beta"
+        out = replace_em_dashes(text)
+        assert ch not in out
+        assert out == "alpha - beta"
+
+
+def test_strip_format_controls_removes_bidi_and_zero_width_marks():
+    text = "alpha\u200bbeta\u202egamma"
+    assert strip_format_controls(text) == "alphabetagamma"
+
+
+def test_sanitize_removes_format_controls():
+    text = "alpha\u200b \u2014 beta"
+    cleaned = sanitize_voice_output(text)
+    assert "\u200b" not in cleaned
+    assert "\u2014" not in cleaned
+    assert cleaned == "alpha - beta"
 
 
 def test_collapses_double_spaces_introduced_by_replacement():

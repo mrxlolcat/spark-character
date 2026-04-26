@@ -17,6 +17,7 @@ here. Leave those to the critic.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 EM_DASH_FAMILY = (
     "\u2014",  # em dash
@@ -27,8 +28,19 @@ EM_DASH_FAMILY = (
 )
 
 
+def is_dash_punctuation(ch: str) -> bool:
+    return unicodedata.category(ch) == "Pd" or ch == "\u2212"
+
+
+def strip_format_controls(text: str) -> str:
+    """Remove Unicode format controls such as bidi and zero-width marks."""
+    if not text:
+        return text
+    return "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+
+
 def replace_em_dashes(text: str, replacement: str = " - ") -> str:
-    """Replace all em-dash-family characters with a hyphen.
+    """Replace Unicode dash punctuation with a plain hyphen separator.
 
     Default replacement is " - " (space-hyphen-space) to match the
     typographic role an em dash usually plays as a parenthetical
@@ -38,9 +50,8 @@ def replace_em_dashes(text: str, replacement: str = " - ") -> str:
     """
     if not text:
         return text
-    out = text
-    for ch in EM_DASH_FAMILY:
-        out = out.replace(ch, replacement)
+    out = unicodedata.normalize("NFKD", text)
+    out = "".join(replacement if is_dash_punctuation(ch) else ch for ch in out)
     while "  " in out:
         out = out.replace("  ", " ")
     return out
@@ -58,4 +69,4 @@ def strip_markdown_emphasis(text: str) -> str:
 
 def sanitize_voice_output(text: str) -> str:
     """Apply all voice post-processors that are safe to run in production."""
-    return strip_markdown_emphasis(replace_em_dashes(text))
+    return strip_markdown_emphasis(replace_em_dashes(strip_format_controls(text)))
