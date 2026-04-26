@@ -117,7 +117,7 @@ from .voice_judge import (
     score_distinctiveness_async,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.24.0"
 
 __all__ = [
     "AuditFailure",

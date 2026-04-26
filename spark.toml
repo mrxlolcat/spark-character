@@ -1,0 +1,58 @@
+[module]
+name = "spark-character"
+version = "0.24.0"
+kind = "runtime"
+plane = "identity"
+description = "Provider-agnostic Spark persona, voice consistency, scoring, and opt-in evolution runtime."
+homepage = "https://github.com/vibeforge1111/spark-character"
+license = "MIT"
+
+[runtime]
+kind = "python"
+version = ">=3.10"
+package_manager = "pip"
+
+[install.dev]
+commands = ["python -m pip install -e ."]
+
+[provides]
+capabilities = [
+  "spark.character",
+  "spark.persona",
+  "spark.voice.eval",
+  "spark.character.evolution",
+]
+
+[needs]
+modules = []
+capabilities = []
+secrets = []
+
+[claims]
+secrets = []
+ports = []
+routes = []
+
+[healthcheck]
+command = "python -c \"from spark_character import score_persona; score = score_persona('I can help.'); print(f'persona_score={score.mean:.2f}')\""
+timeout_seconds = 20
+success_hint = "Spark Character persona/scoring runtime is importable."
+failure_hint = "Run `python -m pytest -q` in the module home for detail."
+
+[paths]
+home = "~/.spark/modules/spark-character"
+state = "~/.spark/state/spark-character"
+logs = "~/.spark/logs/spark-character"
+
+[profiles.telegram_starter]
+role = "persona-and-voice-runtime"
+owns = [
+  "spark.character",
+  "spark.persona",
+  "spark.voice.eval",
+]
+does_not_own = [
+  "telegram.ingress",
+  "telegram.bot_token",
+  "mission.execution",
+]

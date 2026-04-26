@@ -48,6 +48,16 @@ Open gaps and planned evolutions in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Install
 
+Normal Spark users get this module through the starter installer:
+
+```bash
+spark setup
+```
+
+That installs `spark-character` with the rest of the Telegram starter stack so Builder can use the persona runtime without a separate manual clone.
+
+For local development:
+
 ```bash
 pip install -e .
 # or, with dev tools:
