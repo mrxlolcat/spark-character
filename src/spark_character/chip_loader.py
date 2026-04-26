@@ -40,6 +40,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .prompt_guard import sanitize_prompt_text
+
 try:  # optional dependency
     from personality_engine.loader import load_personality as _lab_load_personality  # type: ignore
     from personality_engine.schema import PersonalityChip as _LabPersonalityChip  # type: ignore
@@ -427,7 +429,7 @@ def render_chip_to_system_prompt(chip: PersonalityChip) -> str:
         for r in chip.harm_avoidance:
             lines.append(f"- {r}")
 
-    return "\n".join(lines).strip()
+    return sanitize_prompt_text("\n".join(lines).strip())
 
 
 def _trait_directives(chip: PersonalityChip) -> list[str]:

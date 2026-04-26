@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .prompt_guard import sanitize_prompt_text
+
 ARTIFACTS_DIR = Path(__file__).parent / "artifacts"
 OVERLAYS_DIR = ARTIFACTS_DIR / "overlays"
 LATEST_POINTER = ARTIFACTS_DIR / "persona.latest.txt"
@@ -41,7 +43,7 @@ def load_overlay(provider_kind: str | None) -> str:
     path = OVERLAYS_DIR / f"{provider_kind.lower().strip()}.md"
     if not path.exists():
         return ""
-    return path.read_text(encoding="utf-8").strip()
+    return sanitize_prompt_text(path.read_text(encoding="utf-8")).strip()
 
 
 def load_surface_overlay(surface: str | None) -> str:
@@ -53,7 +55,7 @@ def load_surface_overlay(surface: str | None) -> str:
     path = OVERLAYS_DIR / "surface" / f"{surface.lower().strip()}.md"
     if not path.exists():
         return ""
-    return path.read_text(encoding="utf-8").strip()
+    return sanitize_prompt_text(path.read_text(encoding="utf-8")).strip()
 
 
 def detect_provider_kind(provider) -> str | None:
@@ -172,7 +174,7 @@ def load_persona(
     path = ARTIFACTS_DIR / f"persona.{resolved}.md"
     if not path.exists():
         raise FileNotFoundError(f"Persona artifact not found: {path}")
-    base_text = path.read_text(encoding="utf-8")
+    base_text = sanitize_prompt_text(path.read_text(encoding="utf-8"))
     parts = [base_text.rstrip()]
     overlay_text = load_overlay(provider_kind)
     if overlay_text:
@@ -193,4 +195,4 @@ def load_persona_from_path(path: str | Path) -> PersonaSpec:
     if not p.exists():
         raise FileNotFoundError(f"Persona artifact not found: {p}")
     version = p.stem.split(".", 1)[-1] if "." in p.stem else "custom"
-    return PersonaSpec(version=version, text=p.read_text(encoding="utf-8"))
+    return PersonaSpec(version=version, text=sanitize_prompt_text(p.read_text(encoding="utf-8")))
