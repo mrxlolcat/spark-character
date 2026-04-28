@@ -19,6 +19,9 @@ htmlcov/
 
 # eval outputs (any file starting with underscore in evals/)
 evals/_*
+evals/.telegram-sessions/
+*.session
+*.session-journal
 
 # editor
 .vscode/
@@ -28,3 +31,14 @@ evals/_*
 # local secrets (should never be committed)
 .env
 .env.*
+evals/.telegram-e2e.env
+.secrets/
+secrets/
+*token*.txt
+*secret*.txt
+telegram-token*
+telegram-bot-token*
+
+# internal handoff docs (private, never committed)
+docs/HANDOFF_*_INTERNAL.md
+docs/HANDOFF_*_PRIVATE.md
