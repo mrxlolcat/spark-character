@@ -52,8 +52,7 @@ def replace_em_dashes(text: str, replacement: str = " - ") -> str:
     """
     if not text:
         return text
-    out = unicodedata.normalize("NFKD", text)
-    out = "".join(replacement if is_dash_punctuation(ch) else ch for ch in out)
+    out = "".join(replacement if is_dash_punctuation(ch) else ch for ch in text)
     while "  " in out:
         out = out.replace("  ", " ")
     return out
