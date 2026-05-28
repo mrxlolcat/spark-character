@@ -111,3 +111,34 @@ def test_chip_promotion_does_not_export_scores_or_delta_summary(tmp_path: Path) 
     assert evolved["promotion_result"] == "accepted"
     assert "composite_score" not in evolved
     assert "delta_summary" not in evolved
+
+
+def test_persona_sidecar_promotion_rejects_chip_id_path_escape(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "escaped.personality.yaml"
+
+    with pytest.raises(ValueError):
+        promote_evolved_persona_to_chip_lab(
+            base_chip_id="../escaped",
+            base_persona_version="v8",
+            new_persona_version="v9",
+            persona_markdown="New voice rules",
+            lab_path=tmp_path,
+        )
+
+    assert not outside.exists()
+
+
+def test_chip_promotion_rejects_chip_id_path_escape(tmp_path: Path) -> None:
+    chip = PersonalityChip(id="founder-operator", name="Founder Operator")
+    outside = tmp_path.parent / "escaped-evolved-v9.personality.yaml"
+
+    with pytest.raises(ValueError):
+        promote_evolved_chip_to_chip_lab(
+            chip=chip,
+            base_chip_id="../escaped",
+            base_persona_version="v8",
+            new_persona_version="v9",
+            lab_path=tmp_path,
+        )
+
+    assert not outside.exists()

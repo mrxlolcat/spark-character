@@ -59,6 +59,14 @@ def find_chip_lab_path() -> Path | None:
     return None
 
 
+def _personality_yaml_path(lab: Path, chip_id: str) -> Path:
+    """Build a chip YAML path without allowing chip ids to escape the lab."""
+    root = lab.resolve()
+    target = (root / f"{chip_id}.personality.yaml").resolve()
+    target.relative_to(root)
+    return target
+
+
 def promote_evolved_persona_to_chip_lab(
     *,
     base_chip_id: str,
@@ -83,7 +91,7 @@ def promote_evolved_persona_to_chip_lab(
     if lab is None:
         return None
 
-    base_yaml_path = lab / f"{base_chip_id}.personality.yaml"
+    base_yaml_path = _personality_yaml_path(lab, base_chip_id)
     base_spec: dict[str, Any] = {}
     if base_yaml_path.exists():
         try:
@@ -110,7 +118,7 @@ def promote_evolved_persona_to_chip_lab(
     }
     out["voice_rules_override"] = persona_markdown.strip()
 
-    target = lab / f"{new_chip_id}.personality.yaml"
+    target = _personality_yaml_path(lab, new_chip_id)
     target.write_text(
         yaml.safe_dump(out, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
@@ -164,7 +172,7 @@ def promote_evolved_chip_to_chip_lab(
     if voice_rules_override:
         spec["voice_rules_override"] = voice_rules_override.strip()
 
-    target = lab / f"{new_chip_id}.personality.yaml"
+    target = _personality_yaml_path(lab, new_chip_id)
     target.write_text(
         yaml.safe_dump(spec, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
