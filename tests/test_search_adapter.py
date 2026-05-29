@@ -125,6 +125,26 @@ def test_parse_duckduckgo_redirect_decodes_target_url() -> None:
     assert results[0].url == "https://example.com/safe"
 
 
+@pytest.mark.parametrize(
+    "raw_url",
+    [
+        "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fsafe",
+        "/l/?uddg=https%3A%2F%2Fexample.com%2Fsafe",
+    ],
+)
+def test_parse_duckduckgo_redirect_decodes_absolute_and_relative_urls(raw_url: str) -> None:
+    html_text = f"""
+    <html>
+    <a class="result__a" href="{raw_url}">Example</a>
+    <a class="result__snippet">A snippet</a>
+    </html>
+    """
+
+    results = _parse_duckduckgo_html(html_text)
+
+    assert results[0].url == "https://example.com/safe"
+
+
 def test_parse_duckduckgo_malformed_redirect_keeps_raw_url(monkeypatch) -> None:
     def empty_uddg(_query: str) -> dict[str, list[str]]:
         return {"uddg": []}

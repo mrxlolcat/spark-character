@@ -182,19 +182,29 @@ def _parse_duckduckgo_html(text: str) -> list[SearchResult]:
         clean_snippet = ""
         if i < len(snippets):
             clean_snippet = _strip_tags(html.unescape(snippets[i])).strip()
-        url = raw_url
-        if url.startswith("//duckduckgo.com/l/?uddg="):
-            try:
-                parsed = urlparse(url)
-                qs = parse_qs(parsed.query)
-                if qs.get("uddg"):
-                    url = unquote(qs["uddg"][0])
-            except (ValueError, IndexError):
-                pass
+        url = _decode_duckduckgo_redirect(html.unescape(raw_url))
         if not clean_title and not clean_snippet:
             continue
         results.append(SearchResult(title=clean_title, snippet=clean_snippet, url=url))
     return results
+
+
+def _decode_duckduckgo_redirect(raw_url: str) -> str:
+    try:
+        parsed = urlparse(raw_url)
+        host = (parsed.hostname or "").lower()
+        is_duckduckgo_redirect = (
+            (host == "duckduckgo.com" or (not host and raw_url.startswith("/l/")))
+            and parsed.path.startswith("/l/")
+        )
+        if not is_duckduckgo_redirect:
+            return raw_url
+        qs = parse_qs(parsed.query)
+        if qs.get("uddg"):
+            return unquote(qs["uddg"][0])
+    except (ValueError, IndexError):
+        pass
+    return raw_url
 
 
 def _strip_tags(text: str) -> str:
