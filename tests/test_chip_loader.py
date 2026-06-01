@@ -156,6 +156,26 @@ def test_load_chip_by_id_omits_unavailable_desktop_lab_from_default_paths(
     assert home_lab.name in message
 
 
+def test_default_chip_lab_paths_include_available_spark_module_lab(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module_lab = tmp_path / ".spark" / "modules" / "spark-personality-chip-labs" / "source" / "personalities"
+    missing_spark_lab = tmp_path / ".spark" / "spark-personality-chip-labs" / "personalities"
+    desktop_lab = tmp_path / "Desktop" / "spark-personality-chip-labs" / "personalities"
+    fallback_lab = tmp_path / ".spark" / "personalities"
+    module_lab.mkdir(parents=True)
+    desktop_lab.mkdir(parents=True)
+
+    monkeypatch.setattr(
+        chip_loader,
+        "DEFAULT_CHIP_LAB_PATHS",
+        (module_lab, missing_spark_lab, desktop_lab, fallback_lab),
+    )
+
+    assert chip_loader.default_chip_lab_paths() == [module_lab, desktop_lab, fallback_lab]
+
+
 def test_load_chip_by_id_does_not_swallow_unexpected_loader_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

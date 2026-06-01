@@ -39,7 +39,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .chip_loader import PersonalityChip, validate_chip_yaml_spec
+from .chip_loader import PersonalityChip, default_chip_lab_paths, validate_chip_yaml_spec
 
 DEFAULT_LAB_PATH = Path(os.path.expanduser(
     "~/Desktop/spark-personality-chip-labs/personalities"
@@ -48,12 +48,7 @@ DEFAULT_LAB_PATH = Path(os.path.expanduser(
 
 def find_chip_lab_path() -> Path | None:
     """Locate the chip lab personalities directory if installed locally."""
-    candidates = [
-        DEFAULT_LAB_PATH,
-        Path("./personalities"),
-        Path(os.path.expanduser("~/.spark/personalities")),
-    ]
-    for p in candidates:
+    for p in default_chip_lab_paths():
         if p.exists() and p.is_dir():
             return p
     return None
