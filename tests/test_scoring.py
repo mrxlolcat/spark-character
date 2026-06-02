@@ -10,6 +10,11 @@ def test_em_dash_fails_p1() -> None:
     assert score.p1_em_dash == 0.0
 
 
+def test_dash_family_fails_p1() -> None:
+    score = score_persona("Revenue grew from 10\u2013100 per day.")
+    assert score.p1_em_dash == 0.0
+
+
 def test_hyphen_passes_p1() -> None:
     score = score_persona("Two chips routing live: - X Content - tweet eval.")
     assert score.p1_em_dash == 1.0

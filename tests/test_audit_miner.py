@@ -11,6 +11,12 @@ def test_detects_markdown_emphasis_in_reply_preview():
     assert "markdown_emphasis" in kinds
 
 
+def test_detects_dash_family_in_reply_preview():
+    failures = _detect_failures("Ship v2\u2013v3 after the release audit.")
+
+    assert ("em_dash", "1 occurrences") in failures
+
+
 def test_detects_dense_opening_in_reply_preview():
     text = (
         "Mission control first is the right call because it lets you observe active work, "

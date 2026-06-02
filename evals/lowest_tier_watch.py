@@ -44,6 +44,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 HISTORY_FILE_DEFAULT = Path("evals/_score_history.jsonl")
 STATE_FILE_DEFAULT = Path("evals/_lowest_tier_watch_state.json")
 HEARTBEAT_FILE_DEFAULT = Path("evals/_lowest_tier_watch_heartbeat.txt")
+EVOLUTION_SUBPROCESS_TIMEOUT_SECONDS = 2400
 
 TIER_KEYS = (
     "t1_mean", "t2_mean", "t3_mean", "t4_mean",
@@ -166,7 +167,21 @@ def fire_evolution(
     if dry_run:
         print(f"[lowest_tier_watch] dry-run, would run: {' '.join(cmd)}", flush=True)
         return False, ""
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=repo_root)
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+            timeout=EVOLUTION_SUBPROCESS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        message = (
+            "[timeout] evolution subprocess exceeded "
+            f"{EVOLUTION_SUBPROCESS_TIMEOUT_SECONDS}s limit"
+        )
+        print(f"[lowest_tier_watch] {message}", flush=True)
+        return False, message
     log_tail = (result.stdout or "")[-3000:]
     print(log_tail, flush=True)
     promoted = "PROMOTED:" in (result.stdout or "")
