@@ -49,6 +49,7 @@ def test_diagnose_lines_do_not_include_reply_preview():
 
     lines = findings.diagnose_lines()
 
-    assert "Private reply text" not in lines[0]
+    joined = "\n".join(lines)
+    assert "Private reply text" not in joined
     assert "dense_opening" in lines[0]
     assert "provider_execution" in lines[0]
