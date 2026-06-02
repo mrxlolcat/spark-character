@@ -46,16 +46,34 @@ def replace_em_dashes(text: str, replacement: str = " - ") -> str:
 
     Default replacement is " - " (space-hyphen-space) to match the
     typographic role an em dash usually plays as a parenthetical
-    separator. The function then collapses any double spaces this
-    introduces, so existing single-spaced "word — word" becomes
-    "word - word", not "word  -  word".
+    separator. Only the inline whitespace immediately adjacent to a
+    replaced dash is collapsed, so existing single-spaced "word — word"
+    becomes "word - word" (not "word  -  word") while unrelated spacing
+    such as list indentation or aligned columns is preserved.
     """
     if not text:
         return text
-    out = "".join(replacement if is_dash_punctuation(ch) else ch for ch in text)
-    while "  " in out:
-        out = out.replace("  ", " ")
-    return out
+    trim_left = replacement[:1] == " "
+    trim_right = replacement[-1:] == " "
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if is_dash_punctuation(ch):
+            # Drop one inline space already emitted before the dash so the
+            # replacement's own leading space does not create a double space.
+            if trim_left and out and out[-1] in " \t":
+                out.pop()
+            out.append(replacement)
+            i += 1
+            # Skip one inline space after the dash for the same reason.
+            if trim_right and i < n and text[i] in " \t":
+                i += 1
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
 
 
 def strip_markdown_emphasis(text: str) -> str:

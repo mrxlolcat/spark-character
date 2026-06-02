@@ -124,3 +124,19 @@ def test_sanitize_preserves_non_em_dash_voice_violations():
     assert cleaned_score.p1_em_dash == 1.0
     assert cleaned_score.p4_lead == 0.0
     assert cleaned_score.p2_plumbing < 1.0
+
+
+def test_replace_em_dashes_preserves_unrelated_whitespace():
+    # Regression for the global double-space collapse that mangled list
+    # indentation and aligned text on every sanitized reply. Spacing that is
+    # not adjacent to a replaced dash must be left intact.
+    text = "Plan:\n  1. ship it\n  2. measure — then iterate"
+    out = replace_em_dashes(text)
+    assert out == "Plan:\n  1. ship it\n  2. measure - then iterate"
+    # A pre-existing double space with no dash nearby must survive.
+    assert replace_em_dashes("a  b") == "a  b"
+
+
+def test_replace_em_dashes_still_single_spaces_around_dash():
+    assert replace_em_dashes("word — word") == "word - word"
+    assert replace_em_dashes("word—word") == "word - word"
