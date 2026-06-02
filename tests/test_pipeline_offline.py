@@ -12,7 +12,7 @@ from spark_character import (
     load_critic,
     load_persona,
 )
-from spark_character.critic import CritiqueResult
+from spark_character.critic import CritiqueResult, _interpret
 from spark_character.pipeline import _accept_rewrite_or_keep
 
 
@@ -56,6 +56,22 @@ def test_critique_pass_keeps_draft() -> None:
     assert result.final == "Ship the redesign now. Three reasons follow."
     assert not result.rewritten
     assert result.critic_version == "v1"
+
+
+def test_critic_pass_token_requires_exact_match() -> None:
+    draft = "Ship the redesign now."
+    result = _interpret(draft, " pass ")
+
+    assert result.final == draft
+    assert result.rewritten is False
+
+
+def test_critic_does_not_treat_pass_prefixed_words_as_pass_token() -> None:
+    draft = "Ship the redesign now."
+    for response in ("PASSING", "PASSAGE", "PASSION"):
+        result = _interpret(draft, response)
+        assert result.final == response
+        assert result.rewritten is True
 
 
 def test_critique_rewrites_when_persona_violation_present() -> None:
