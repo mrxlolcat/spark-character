@@ -68,6 +68,15 @@ def test_clamp_dict_clamps_out_of_range() -> None:
     assert out == {"openness": 0.10, "neuroticism": -0.10}
 
 
+def test_clamp_dict_rejects_non_finite_deltas() -> None:
+    out = _clamp_dict(
+        {"openness": float("nan"), "neuroticism": float("inf"), "agreeableness": "-Infinity"},
+        ("openness", "neuroticism", "agreeableness"),
+        max_delta=0.10,
+    )
+    assert out == {}
+
+
 def test_clamp_dict_drops_zero_deltas() -> None:
     out = _clamp_dict({"openness": 0.0}, ("openness",), max_delta=0.10)
     assert out == {}

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import re
 from dataclasses import dataclass, replace
 from typing import Any
@@ -212,6 +213,8 @@ def _clamp_dict(
         try:
             v = float(raw_val)
         except (TypeError, ValueError):
+            continue
+        if not math.isfinite(v):
             continue
         v = max(-max_delta, min(max_delta, v))
         if v != 0.0:

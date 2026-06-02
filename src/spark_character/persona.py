@@ -136,10 +136,12 @@ def resolve_latest_persona_version() -> str:
       2. Highest-numbered persona.vN.md file on disk.
       3. DEFAULT_PERSONA_VERSION as the final fallback.
     """
-    if LATEST_POINTER.exists():
+    try:
         text = LATEST_POINTER.read_text(encoding="utf-8").strip()
-        if text:
-            return validate_persona_version(text)
+    except FileNotFoundError:
+        text = ""
+    if text:
+        return validate_persona_version(text)
     versions: list[int] = []
     for path in ARTIFACTS_DIR.glob("persona.v*.md"):
         try:

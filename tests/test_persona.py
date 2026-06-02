@@ -68,6 +68,18 @@ def test_latest_persona_pointer_rejects_malformed_version(tmp_path: Path, monkey
         persona_module.resolve_latest_persona_version()
 
 
+def test_latest_persona_pointer_handles_concurrent_delete(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class VanishingPointer:
+        def read_text(self, encoding: str = "utf-8") -> str:
+            raise FileNotFoundError
+
+    (tmp_path / "persona.v9.md").write_text("Persona v9", encoding="utf-8")
+    monkeypatch.setattr(persona_module, "LATEST_POINTER", VanishingPointer())
+    monkeypatch.setattr(persona_module, "ARTIFACTS_DIR", tmp_path)
+
+    assert persona_module.resolve_latest_persona_version() == "v9"
+
+
 def test_validate_persona_version_reports_received_value() -> None:
     with pytest.raises(ValueError) as exc_info:
         persona_module.validate_persona_version("ver8")

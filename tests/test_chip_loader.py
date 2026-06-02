@@ -139,6 +139,18 @@ def test_load_chip_by_id_skips_malformed_yaml_and_finds_valid_chip(
     assert "Failed to load personality chip broken.personality.yaml" in caplog.text
 
 
+def test_load_chip_by_id_reports_invalid_direct_chip_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(chip_loader, "_LAB_AVAILABLE", False)
+    monkeypatch.setattr(chip_loader, "_lab_load_personality", None)
+    (tmp_path / "founder-operator.personality.yaml").write_text("identity: [", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Personality chip file is invalid: founder-operator.personality.yaml"):
+        chip_loader.load_chip_by_id("founder-operator", search_paths=[tmp_path])
+
+
 @pytest.mark.parametrize("chip_id", ["", " ", "\t\n"])
 def test_load_chip_by_id_rejects_blank_chip_id(chip_id: str) -> None:
     with pytest.raises(ValueError, match="chip id is required"):

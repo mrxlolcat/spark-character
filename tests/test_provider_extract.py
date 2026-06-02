@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import httpx
 import pytest
 
-from spark_character.provider import ProviderSpec, _extract_text, _join_url, _strip_think_blocks, validate_provider_base_url
+from spark_character.provider import (
+    ProviderSpec,
+    _extract_text,
+    _join_url,
+    _parse_provider_response_json,
+    _strip_think_blocks,
+    validate_provider_base_url,
+)
 
 
 def test_strip_complete_think_block() -> None:
@@ -74,3 +82,24 @@ def test_provider_base_url_allows_localhost_for_local_openai_compatible_servers(
 def test_join_url_validates_direct_provider_spec_base_url() -> None:
     with pytest.raises(RuntimeError, match="not allowed"):
         _join_url("https://evil.example/v1", "chat/completions")
+
+
+def test_parse_provider_response_json_rejects_html_content_type_without_body_preview() -> None:
+    resp = httpx.Response(200, text="<html>sensitive-marker</html>", headers={"content-type": "text/html"})
+
+    with pytest.raises(RuntimeError, match="non-JSON content-type") as exc_info:
+        _parse_provider_response_json(resp)
+
+    assert "sensitive-marker" not in str(exc_info.value)
+
+
+def test_parse_provider_response_json_accepts_object() -> None:
+    resp = httpx.Response(
+        200,
+        json={"choices": [{"message": {"content": "ok"}}]},
+        headers={"content-type": "application/json"},
+    )
+
+    body = _parse_provider_response_json(resp)
+
+    assert body["choices"][0]["message"]["content"] == "ok"

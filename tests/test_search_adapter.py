@@ -140,6 +140,18 @@ def test_search_results_soft_fails_expected_backend_errors() -> None:
     assert search_results_for("current btc price", search_fn=failing_search) == []
 
 
+def test_search_results_logs_failure_without_raw_query_or_error(caplog: pytest.LogCaptureFixture) -> None:
+    def failing_search(_query: str) -> list[SearchResult]:
+        raise httpx.HTTPError("network sensitive-marker")
+
+    with caplog.at_level("WARNING"):
+        assert search_results_for("current sensitive account marker", search_fn=failing_search) == []
+
+    assert any("Live search failed" in record.message for record in caplog.records)
+    assert "current sensitive account marker" not in caplog.text
+    assert "sensitive-marker" not in caplog.text
+
+
 def test_search_results_surfaces_unexpected_programming_errors() -> None:
     def broken_search(_query: str) -> list[SearchResult]:
         raise RuntimeError("programmer bug")
