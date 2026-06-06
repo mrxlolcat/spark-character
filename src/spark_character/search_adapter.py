@@ -40,7 +40,7 @@ import html
 import logging
 import re
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable, Mapping
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 
 import httpx
@@ -69,6 +69,13 @@ class SearchResult:
     url: str
 
 
+@dataclass(frozen=True)
+class NetworkPolicy:
+    allowed: bool
+    authority: str
+    risk: str = "network"
+
+
 def detect_needs_live_data(prompt: str) -> bool:
     """Heuristic for whether a prompt benefits from a live search."""
     if not prompt:
@@ -92,6 +99,7 @@ def search_results_for(
     max_results: int = 5,
     timeout_seconds: float = 8.0,
     search_fn: Callable[[str], list[SearchResult]] | None = None,
+    network_policy: NetworkPolicy | Mapping[str, Any] | None = None,
 ) -> list[SearchResult]:
     """Search the web for `query` and return up to `max_results` SearchResults.
 
@@ -99,6 +107,9 @@ def search_results_for(
     Soft-fails: returns [] on any error so the caller can fall through.
     """
     if not query.strip():
+        return []
+    if search_fn is None and not _network_policy_allows_live_search(network_policy):
+        logger.warning("Live search skipped; network policy did not authorize the default backend.")
         return []
     fn = search_fn or _duckduckgo_html_search
     try:
@@ -115,6 +126,7 @@ def attach_search_context(
     query: str | None = None,
     max_results: int = 4,
     search_fn: Callable[[str], list[SearchResult]] | None = None,
+    network_policy: NetworkPolicy | Mapping[str, Any] | None = None,
     only_if_needed: bool = True,
 ) -> str:
     """Return a prompt with live search context attached when relevant.
@@ -126,7 +138,12 @@ def attach_search_context(
     if only_if_needed and not detect_needs_live_data(user_message):
         return user_message
     q = query or extract_search_query(user_message)
-    results = search_results_for(q, max_results=max_results, search_fn=search_fn)
+    results = search_results_for(
+        q,
+        max_results=max_results,
+        search_fn=search_fn,
+        network_policy=network_policy,
+    )
     if not results:
         return user_message
     context_lines = [
@@ -151,6 +168,25 @@ def attach_search_context(
 
 def _safe_search_context_text(text: str) -> str:
     return sanitize_prompt_text(str(text or "")).strip()
+
+
+def _network_policy_allows_live_search(
+    network_policy: NetworkPolicy | Mapping[str, Any] | None,
+) -> bool:
+    """True only when a caller binds live search to an explicit network policy."""
+    if network_policy is None:
+        return False
+    if isinstance(network_policy, NetworkPolicy):
+        return (
+            bool(network_policy.allowed)
+            and network_policy.risk == "network"
+            and bool(network_policy.authority.strip())
+        )
+    return (
+        bool(network_policy.get("allowed"))
+        and str(network_policy.get("risk") or "").strip() == "network"
+        and bool(str(network_policy.get("authority") or "").strip())
+    )
 
 
 def _duckduckgo_html_search(query: str) -> list[SearchResult]:

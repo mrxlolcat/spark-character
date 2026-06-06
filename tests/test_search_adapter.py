@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from spark_character.search_adapter import (
+    NetworkPolicy,
     SearchResult,
     _parse_duckduckgo_html,
     _strip_tags,
@@ -150,6 +151,34 @@ def test_search_results_logs_failure_without_raw_query_or_error(caplog: pytest.L
     assert any("Live search failed" in record.message for record in caplog.records)
     assert "current sensitive account marker" not in caplog.text
     assert "sensitive-marker" not in caplog.text
+
+
+def test_default_live_search_requires_network_policy(monkeypatch) -> None:
+    called = False
+
+    def fake_backend(_query: str) -> list[SearchResult]:
+        nonlocal called
+        called = True
+        return [SearchResult("title", "snippet", "https://example.com")]
+
+    monkeypatch.setattr("spark_character.search_adapter._duckduckgo_html_search", fake_backend)
+
+    assert search_results_for("latest Spark status") == []
+    assert called is False
+
+
+def test_default_live_search_runs_with_network_policy(monkeypatch) -> None:
+    def fake_backend(_query: str) -> list[SearchResult]:
+        return [SearchResult("title", "snippet", "https://example.com")]
+
+    monkeypatch.setattr("spark_character.search_adapter._duckduckgo_html_search", fake_backend)
+
+    results = search_results_for(
+        "latest Spark status",
+        network_policy=NetworkPolicy(allowed=True, authority="harness-core-governor", risk="network"),
+    )
+
+    assert results == [SearchResult("title", "snippet", "https://example.com")]
 
 
 def test_search_results_surfaces_unexpected_programming_errors() -> None:
